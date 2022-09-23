@@ -9,9 +9,9 @@ https://docs.djangoproject.com/en/3.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
-
+import os
 from pathlib import Path
-
+import django_heroku
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -134,4 +134,13 @@ USE_TZ = False
 
 STATIC_URL = '/static/'
 
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+
+STATICFILES_DIRS = [
+
+    os.path.join(BASE_DIR, "static")
+]
+
 CORS_ORIGIN_ALLOW_ALL = True
+
+django_heroku.settings(locals())

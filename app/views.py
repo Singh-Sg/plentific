@@ -4,60 +4,31 @@ from rest_framework.status import HTTP_200_OK, HTTP_202_ACCEPTED, HTTP_400_BAD_R
 from app.models import PlentificRecord
 from datetime import datetime
 import collections
+from django.db import connection
+
 # Create your views here.
 import matplotlib.pyplot as plt
 
 class TimeSeriesView(APIView):
 
     def post(self, request):
-        data = {}
-        datetime_object = datetime.strptime(request.data.get('start_date'), '%Y-%m-%d')
-        datetime_end = datetime.strptime(request.data.get('end_date'), '%Y-%m-%d')
-        diff = (datetime_end-datetime_object).days
-        new = 0
-        qs = PlentificRecord.objects.filter(create_date__range=[request.data.get('start_date'), request.data.get('end_date')])
-        qs.update
-        for record in qs:
-            if record.price =="S":
-                key = (record.create_date-datetime_object).days//30
-                if  key in data.keys():
-                    data[key]["samount"]=(data[key]["samount"]*data[key]["scount"]+record.amount)/(data[key]["scount"]+1)
-                    data[key]["scount"]=data[key]["scount"]+1
-                else:
-                    data[key]={"tamount":0,"tcount":0,"samount":record.amount,"scount":1,"damount":0,"dcount":0,"famount":0,"fcount":0}
-            elif record.price =="T":
-                key = (record.create_date-datetime_object).days//30
-                if  key in data.keys():
-                    data[key]["tamount"]=(data[key]["tamount"]*data[key]["tcount"]+record.amount)/(data[key]["tcount"]+1)
-                    data[key]["tcount"]=data[key]["tcount"]+1
-                else:
-                    data[key]={"tamount":record.amount,"tcount":1,"samount":0,"scount":0,"damount":0,"dcount":0,"famount":0,"fcount":0}
-            elif record.price =="D":
-                key = (record.create_date-datetime_object).days//30
-                if  key in data.keys():
-                    data[key]["damount"]=(data[key]["damount"]*data[key]["dcount"]+record.amount)/(data[key]["dcount"]+1)
-                    data[key]["dcount"]=data[key]["dcount"]+1
-                else:
-                    data[key]={"tamount":0,"tcount":0,"samount":0,"scount":0,"damount":record.amount,"dcount":1,"famount":0,"fcount":0}
-            elif record.price =="F":
-                key = (record.create_date-datetime_object).days//30
-                if  key in data.keys():
-                    data[key]["famount"]=(data[key]["famount"]*data[key]["fcount"]+record.amount)/(data[key]["fcount"]+1)
-                    data[key]["fcount"]=data[key]["fcount"]+1
-                else:
-                    data[key]={"tamount":0,"tcount":0,"samount":0,"scount":0,"damount":0,"dcount":0,"famount":record.amount,"fcount":1}
-        new =collections.OrderedDict(sorted(data.items()))
         key_list = []
         tamount = []
         samount = []
         damount = []
         famount = []
-        for key, values in new.items():
-            key_list.append(key)
-            tamount.append(int(values["tamount"]))
-            samount.append(int(values["samount"]))
-            damount.append(int(values["damount"]))
-            famount.append(int(values["famount"]))
+        print(str(request.data.get('start_date')))
+        cursor = connection.cursor()
+        sql = f"select json_agg(s.op) from ( select jsonb_build_object(t.mon, t.data) op from (select jsonb_agg( cast(amount as bigint)) as data, p.mon from (select avg(amount) amount, ap.price, to_char(ap.create_date, 'yyyy-MM') mon from app_plentificrecord ap where ap.create_date between '{request.data.get('start_date')}' and '{request.data.get('end_date')}'  group by   to_char(ap.create_date, 'yyyy-MM'), ap.price order by  mon asc )p group by p.mon)t)s"
+        cursor.execute(sql)
+        result = cursor.fetchall()[0][0]
+        for row in result:
+            for keyss, value in row.items():
+                key_list.append(keyss)
+                samount.append(value[0])
+                tamount.append(value[1])
+                damount.append(value[3])
+                famount.append(value[4])
         # plt.plot(key_list, tamount)
         # plt.plot(key_list, samount)
         # plt.plot(key_list, damount)
@@ -89,48 +60,4 @@ class AveragePriceView(APIView):
                 data_final["850K-1m"] +=1
             else:
                 data_final["over 1m"] +=1
-        # names = list(data_final.keys())
-        # values = list(data_final.values())
-        # plt.bar(range(len(data_final)), values, tick_label=names)
-        # plt.show()
         return Response({"key":list(data_final.keys()),"values":list(data_final.values()),"total":data_final})
-
-
-class NewAveragePriceView(APIView):
-
-    def post(self, request):
-        postcode = "CT5 4LR"
-        lst = [0] * 8
-        # date_data=request.data.get('date').split("-")
-        data_final={"under 100K":0,"100K-250K":0,"250K-400K":0,"400K-550K":0,"550K-700K":0,"700K-850K":0,"850K-1m":0,"over 1m":0}
-        data = PlentificRecord.objects.filter(create_date__year="2018",create_date__month="09").order_by("-amount")
-        for record in data:
-            t = (record.amount-100000)//150000 +1
-            if t<0:
-                lst[0]+=1
-            elif t>7:
-                lst[7]+=1
-            else:
-                lst[t]+=1
-            # import pdb;pdb.set_trace()
-            # if record.amount< 100000:
-            #     data_final["under 100K"] +=1
-            # elif record.amount< 250000 and record.amount>= 100000:
-            #     data_final["100K-250K"] +=1
-            # elif record.amount< 400000 and record.amount>= 250000:
-            #     data_final["250K-400K"] +=1
-            # elif record.amount< 550000 and record.amount>= 400000:
-            #     data_final["400K-550K"] +=1
-            # elif record.amount< 700000 and record.amount>= 550000:
-            #     data_final["550K-700K"] +=1
-            # elif record.amount< 850000 and record.amount>= 700000:
-            #     data_final["700K-850K"] +=1
-            # elif record.amount< 1000000 and record.amount>= 850000:
-            #     data_final["850K-1m"] +=1
-            # else:
-            #     data_final["over 1m"] +=1
-        # names = list(data_final.keys())
-        # values = list(data_final.values())
-        # plt.bar(range(len(data_final)), values, tick_label=names)
-        # plt.show()
-        return Response(lst)

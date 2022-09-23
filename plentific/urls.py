@@ -21,5 +21,4 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('timeseries/',TimeSeriesView.as_view(), name="timeseries"),
     path('average/',AveragePriceView.as_view(), name="average"),
-    path('newaverage/',NewAveragePriceView.as_view(), name="average"),
 ]

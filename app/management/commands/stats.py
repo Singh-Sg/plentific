@@ -23,3 +23,4 @@ class Command(BaseCommand):
                     PlentificRecord.objects.bulk_create(xy)
                     break
                 c += 1
+            print(f"Done{i}")
